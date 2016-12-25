@@ -1,5 +1,6 @@
-import matplotlib
-from matplotlib import pyplot as plt,cm,path,patches,_cntr as cntr
+from matplotlib import use
+use('Agg')
+from matplotlib import colors,pyplot as plt,cm,path,patches,_cntr as cntr
 from numpy import *
 from sys import exit
 
@@ -77,7 +78,7 @@ def colormapper(x, a=0, b=1, cmap=None):
         rgba = cmap(0)
     else:
         rgba = cmap((x - a) / float(b - a))
-    hex_ = matplotlib.colors.rgb2hex(rgba)
+    hex_ = colors.rgb2hex(rgba)
     return hex_
 
 def globalCmap(cmap_name,range=(0.0,1.0),glob=(0.0,1.0)):

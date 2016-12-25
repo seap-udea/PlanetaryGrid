@@ -97,3 +97,13 @@ P=planetProperties(Mp,CMF,IMF,
                    data='full',
                    verbose=False,test=False)
 print "Magnetic properties:\n",P
+
+#========================================
+#PLOT PROPERTIES
+#========================================
+fig=plt.figure()
+ax=fig.gca()
+
+fig.savefig("density.png")
+
+

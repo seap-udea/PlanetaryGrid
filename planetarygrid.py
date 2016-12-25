@@ -3,6 +3,7 @@
 #######################################################################
 import commands
 import numpy as np
+import scipy.constants as const
 
 #######################################################################
 #PARAMETERS
@@ -95,7 +96,46 @@ IRIFLAG=10
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 #PHYSICAL
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+#EARTH'S RADIUS
 REARTH=6.371E6 #m
+#VACCUUM PERMEABILITY
+MU0=const.mu_0
+#ASTRONOMICAL UNIT
+AU=1.496E11 #m
+#SECONDS IN AN HOUR
+HOUR=3600.0
+#SECONDS IN A DAY
+DAY=86400.0
+#YEAR
+YEAR=365.0*DAY
+
+#EARTH'S MAGNETIC FIELD
+"""
+CONVENTIONS
+Christensen & Aubert 2006 : CA06
+Olson & Christensen 2006: OC06
+Gaidos et al. 2010: GA10
+Tachinami et al. 2010: TA10
+Roberts & Glatzmaier 2000: RG00
+Aubert, Labrosse & Poitou 2009: ALP09
+Selsis et al. 2007: S07
+Greissmeier et al. 2007 (PSS): G07
+"""
+MDIPE=7.768E22 #A m^2
+BDIPE=42.48 #micro T
+Rc_E=3.480E6 #m,**RG00**
+Ric_E=1.2215E6 #m, **RG00**
+Chi_E=Ric_E/Rc_E 
+rhoc_E=1.1E4 #kg/m3, **OC06**
+gc_E=10.68 #**RG00**
+Rosl_E=0.09/(1+Chi_E) #**OC06+ALP09**
+Tc_E=5000
+
+#TRANSITION PARAMETERS FOR FDIP
+fdip_f_E=0.2
+fdip_g_E=1.0
+fdip_a_E=0.009
+fdip_b_E=0.1
 
 #######################################################################
 #AUXILIARY VARIABLES
@@ -108,6 +148,70 @@ IMFS=[]
 #######################################################################
 #ROUTINES
 #######################################################################
+def argapp(args,app):
+    for key in app:args[key]=app[key]
+    return args
+
+def funcScalecmul(Rolm):
+    """
+    Christensen 2010
+    """
+    f=0.6;g=1.0; #Limit values
+    a=0.005;b=0.1; #Soft factors
+    cmuldip,dc=softStepFunction(Rolm,f,g,a,b)
+    return cmuldip
+
+def softStepFunction(x,f,g,a,b):
+    """
+    Soft-step function given by:
+
+    f + (g-f) / { exp[(x-b)/a] + 1 }
+
+    Maximum value: g
+    Minimum value: f
+
+    Return:
+    s: Value of the step
+    ds: Delta x
+    """
+    s=f+(g-f)/(np.exp((x-b)/a)+1)
+    dx=b+5*a
+    return s,dx
+
+def funcScalefdip(Rolm,f=fdip_f_E,g=fdip_g_E,a=fdip_a_E,b=fdip_b_E):
+    """
+    Fraction of core rms field represented by CMB dipolar component
+
+    Bdip = Brms / bdip_min
+
+    Average envelope: f=0.35,g=1.0,a=0.009,b=0.09
+
+    """
+    #fdip is fitted by a soft-step function:
+    #fdip(Roml) = f + (g-f) / { exp[(Rolm-b)/a] + 1 }
+    fdip,df=softStepFunction(Rolm,f,g,a,b)
+    bdip=funcScalebdip(fdip)
+    return fdip,bdip
+
+def funcScalebdip(fdip,abf=2.5,bbf=1.1):
+    #bdip = abf*fdip **(-bbf)
+    bdip=abf*fdip**(-bbf)
+    return bdip
+
+def DipolarMoment(B,R):
+    """
+    Dipolar magnetic moment
+
+    Parameters:
+    B: magnetic field strength (T)
+    R: Radius (m)
+
+    Return:
+    M: A m^2
+    """
+    M=4*np.pi*R**3*B/(np.sqrt(2)*MU0)
+    return M
+
 class dict2obj(object):
     """Object like dictionary
     
@@ -499,7 +603,7 @@ def gridSurfaceMagneticField(full,**args):
     tevol=full[1]
 
     #Radius
-    Rp=struc[-1,1]*Rp_E
+    Rp=struc[-1,1]*REARTH
     
     #Core density
     core=struc[:,8]==0
@@ -508,18 +612,18 @@ def gridSurfaceMagneticField(full,**args):
 
     #Core radius
     Rs=struc[core,1]
-    Rc=Rs[-1]*Rp_E
+    Rc=Rs[-1]*REARTH
 
     #Inner core radius
     try:
-        Ric=tevol[:,IRIC]*Rp_E
+        Ric=tevol[:,IRIC]*REARTH
         Qconv=tevol[:,IQCONV]
         iQ=(Qconv>0)*(-np.isnan(Qconv))
         Ric=Ric[iQ]
         Qconv=Qconv[iQ]
         if np.size(Qconv)<=1:return 0
     except:
-        Ric=tevol[IRIC]*Rp_E
+        Ric=tevol[IRIC]*REARTH
         Qconv=tevol[IQCONV]
         if Qconv<0:return 0
 
